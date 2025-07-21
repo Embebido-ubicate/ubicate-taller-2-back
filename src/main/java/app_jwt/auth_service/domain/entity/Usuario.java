@@ -1,28 +1,30 @@
 package app_jwt.auth_service.domain.entity;
 
 import app_jwt.auth_service.domain.enums.Role;
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import jakarta.validation.constraints.Email;
+
 import java.util.Collection;
 import java.util.List;
 
 @Entity
-@Table(name = "usuarios", uniqueConstraints = {@UniqueConstraint(columnNames = {"username"})})
+@Table(name = "usuarios", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"username"}),
+        @UniqueConstraint(columnNames = {"correo"})
+})
 @Getter
 @Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class Usuario implements UserDetails {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -33,11 +35,11 @@ public class Usuario implements UserDetails {
     @Column(nullable = false, length = 100)
     private String apellido;
 
-    @Column(nullable = false, length = 8)
+    @Column(length = 8)
     @Pattern(regexp = "\\d{8}")
     private String dni;
 
-    @Column(nullable = false, length = 9)
+    @Column(nullable = false, length = 15)
     private String telefono;
 
     @Column(unique = true, nullable = false, length = 100)
@@ -47,16 +49,33 @@ public class Usuario implements UserDetails {
     @Column(unique = true, nullable = false, length = 100)
     private String username;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 255)
     private String password;
 
+    @Column(length = 255)
+    private String totpSecret;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean mfaEnabled = false;
 
     @Enumerated(EnumType.STRING)
-    private Role role;
+    @Builder.Default
+    private Role role = Role.USER;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
+
+    @Override
+    public String getUsername() {
+        return username;
+    }
+
+    @Override
+    public String getPassword() {
+        return password;
     }
 
     @Override
@@ -77,5 +96,11 @@ public class Usuario implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    public boolean isMfaEnabled() {
+        return Boolean.TRUE.equals(mfaEnabled) &&
+                totpSecret != null &&
+                !totpSecret.isEmpty();
     }
 }

@@ -1,0 +1,40 @@
+package app_jwt.auth_service.domain.dtos.bus;
+
+import app_jwt.auth_service.domain.entity.Bus;
+import app_jwt.auth_service.domain.enums.EstadoBus;
+import lombok.Builder;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+public class BusResponse {
+    private Long id;
+    private String placa;
+    private String modelo;
+    private Integer capacidad;
+    private String anio;
+    private String color;
+    private EstadoBus estado;
+    private Boolean activo;
+    private Long empresaId;
+    private LocalDateTime fechaCreacion;
+    private LocalDateTime fechaActualizacion;
+
+    public static BusResponse from(Bus bus) {
+        return BusResponse.builder()
+                .id(bus.getId())
+                .placa(bus.getPlaca())
+                .modelo(bus.getModelo())
+                .capacidad(bus.getCapacidad())
+                .anio(bus.getAnio())
+                .color(bus.getColor())
+                .estado(bus.getEstado())
+                .activo(bus.getActivo())
+                .empresaId(bus.getEmpresaId())
+                .fechaCreacion(bus.getFechaCreacion())
+                .fechaActualizacion(bus.getFechaActualizacion())
+                .build();
+    }
+}

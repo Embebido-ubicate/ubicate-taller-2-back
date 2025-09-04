@@ -1,4 +1,4 @@
-package app_jwt.auth_service.domain.dtos;
+package app_jwt.auth_service.domain.dtos.auth;
 
 import lombok.Builder;
 import lombok.Data;
@@ -7,9 +7,7 @@ import lombok.Data;
 @Builder
 public class AuthResponse {
     private String token;
-
     private UserResponse user;
-    private MfaSetupResponse mfaSetup; // Para nuevos registros
 
     @Builder.Default
     private String type = "Bearer";

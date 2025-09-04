@@ -1,4 +1,4 @@
-package app_jwt.auth_service.domain.dtos;
+package app_jwt.auth_service.domain.dtos.auth;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;

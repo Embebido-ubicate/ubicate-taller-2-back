@@ -1,9 +1,8 @@
 package app_jwt.auth_service.controller;
 
-import app_jwt.auth_service.domain.dtos.AuthResponse;
-import app_jwt.auth_service.domain.dtos.LoginRequest;
-import app_jwt.auth_service.domain.dtos.MfaSetupResponse;
-import app_jwt.auth_service.domain.dtos.RegisterRequest;
+import app_jwt.auth_service.domain.dtos.auth.AuthResponse;
+import app_jwt.auth_service.domain.dtos.auth.LoginRequest;
+import app_jwt.auth_service.domain.dtos.auth.RegisterRequest;
 import app_jwt.auth_service.domain.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,13 +19,23 @@ public class UsuarioController {
 
     private final AuthService authService;
 
-    @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        log.info("Intento de registro para email: {}", request.getEmail());
+    @PostMapping("/register/empresa")
+    public ResponseEntity<AuthResponse> registerEmpresa(@Valid @RequestBody RegisterRequest request) {
+        log.info("Intento de registro de empresa para email: {}", request.getEmail());
 
-        AuthResponse response = authService.register(request);
+        AuthResponse response = authService.registerEmpresa(request);
 
-        log.info("Usuario registrado exitosamente: {}", request.getEmail());
+        log.info("Empresa registrada exitosamente: {}", request.getEmail());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/register/chofer")
+    public ResponseEntity<AuthResponse> registerChofer(@Valid @RequestBody RegisterRequest request) {
+        log.info("Intento de registro de chofer para email: {}", request.getEmail());
+
+        AuthResponse response = authService.registerChofer(request);
+
+        log.info("Chofer registrado exitosamente: {}", request.getEmail());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -34,32 +43,9 @@ public class UsuarioController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         log.info("Intento de login para email: {}", request.getEmail());
 
-        log.debug("Request completo recibido: {}", request);
-        log.debug("MFA Code específico: '{}'", request.getMfaCode());
-
         AuthResponse response = authService.login(request);
 
         log.info("Login exitoso para email: {}", request.getEmail());
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/setup-mfa")
-    public ResponseEntity<MfaSetupResponse> setupMfa(@RequestParam String email) {
-        log.info("Configurando MFA para email: {}", email);
-
-        MfaSetupResponse response = authService.setupMfa(email);
-
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/verify-mfa")
-    public ResponseEntity<AuthResponse> verifyMfa(
-            @RequestParam String email,
-            @RequestParam String code) {
-        log.info("Verificando código MFA para email: {}", email);
-
-        AuthResponse response = authService.verifyAndEnableMfa(email, code);
-
         return ResponseEntity.ok(response);
     }
 }

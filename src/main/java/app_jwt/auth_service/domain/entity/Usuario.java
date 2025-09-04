@@ -52,16 +52,9 @@ public class Usuario implements UserDetails {
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(length = 255)
-    private String totpSecret;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean mfaEnabled = false;
-
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    private Role role = Role.USER;
+    private Role role = Role.CHOFER;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -96,11 +89,5 @@ public class Usuario implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
-    }
-
-    public boolean isMfaEnabled() {
-        return Boolean.TRUE.equals(mfaEnabled) &&
-                totpSecret != null &&
-                !totpSecret.isEmpty();
     }
 }

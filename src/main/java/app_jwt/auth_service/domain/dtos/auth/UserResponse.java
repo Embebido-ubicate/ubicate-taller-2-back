@@ -1,4 +1,4 @@
-package app_jwt.auth_service.domain.dtos;
+package app_jwt.auth_service.domain.dtos.auth;
 
 import app_jwt.auth_service.domain.entity.Usuario;
 import app_jwt.auth_service.domain.enums.Role;
@@ -14,7 +14,6 @@ public class UserResponse {
     private String apellido;
     private String telefono;
     private Role role;
-    private boolean mfaEnabled;
 
     public static UserResponse from(Usuario usuario) {
         return UserResponse.builder()
@@ -24,7 +23,6 @@ public class UserResponse {
                 .apellido(usuario.getApellido())
                 .telefono(usuario.getTelefono())
                 .role(usuario.getRole())
-                .mfaEnabled(usuario.isMfaEnabled())
                 .build();
     }
 }

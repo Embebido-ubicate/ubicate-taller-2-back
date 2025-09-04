@@ -1,6 +1,6 @@
 package app_jwt.auth_service.config;
 
-import app_jwt.auth_service.domain.dtos.ErrorResponse;
+import app_jwt.auth_service.domain.dtos.auth.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,9 +34,9 @@ public class GlobalExceptionHandler {
                     .body(new ErrorResponse("USER_002", ex.getMessage()));
         }
 
-        if (ex.getMessage().contains("MFA") || ex.getMessage().contains("Código")) {
+        if (ex.getMessage().contains("Credenciales inválidas")) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ErrorResponse("AUTH_002", ex.getMessage()));
+                    .body(new ErrorResponse("AUTH_001", ex.getMessage()));
         }
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)

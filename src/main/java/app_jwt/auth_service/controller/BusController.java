@@ -22,7 +22,7 @@ import java.util.List;
 @RequestMapping("/api/buses")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasRole('EMPRESA & CHOFER')")
+@PreAuthorize("hasRole('EMPRESA')")
 public class BusController {
 
     private final BusService busService;
@@ -104,4 +104,22 @@ public class BusController {
         String email = authentication.getName();
         return 1L;
     }
+
+    @PutMapping("/{busId}/location")
+    public ResponseEntity<BusResponse> updateBusLocation(
+            @PathVariable Long busId,
+            @Valid @RequestBody UpdateLocationRequest request,
+            Authentication authentication) {
+        Long empresaId = getEmpresaIdFromAuth(authentication);
+        BusResponse response = busService.updateBusLocation(busId, request, empresaId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/ubicaciones")
+    public ResponseEntity<List<BusResponse>> getBusesWithLocation(Authentication authentication) {
+        Long empresaId = getEmpresaIdFromAuth(authentication);
+        List<BusResponse> buses = busService.getBusesWithLocation(empresaId);
+        return ResponseEntity.ok(buses);
+    }
+
 }

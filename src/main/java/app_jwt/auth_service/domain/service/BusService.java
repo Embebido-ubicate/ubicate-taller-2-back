@@ -1,9 +1,6 @@
 package app_jwt.auth_service.domain.service;
 
-import app_jwt.auth_service.domain.dtos.bus.BusResponse;
-import app_jwt.auth_service.domain.dtos.bus.BusStatsResponse;
-import app_jwt.auth_service.domain.dtos.bus.CreateBusRequest;
-import app_jwt.auth_service.domain.dtos.bus.UpdateBusRequest;
+import app_jwt.auth_service.domain.dtos.bus.*;
 import app_jwt.auth_service.domain.entity.Bus;
 import app_jwt.auth_service.domain.enums.EstadoBus;
 import app_jwt.auth_service.infra.repository.BusRepository;
@@ -14,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -192,5 +190,31 @@ public class BusService {
                 .busesEnMantenimiento(enMantenimiento)
                 .estadoPorCantidad(estadoPorCantidad)
                 .build();
+    }
+
+    @Transactional
+    public BusResponse updateBusLocation(Long busId, UpdateLocationRequest request, Long empresaId) {
+        Bus bus = busRepository.findById(busId)
+                .orElseThrow(() -> new RuntimeException("Bus no encontrado"));
+
+        if (!bus.getEmpresaId().equals(empresaId)) {
+            throw new RuntimeException("No tiene permisos para actualizar este bus");
+        }
+
+        bus.setLatitud(request.getLatitud());
+        bus.setLongitud(request.getLongitud());
+        bus.setVelocidad(request.getVelocidad());
+        bus.setUltimaUbicacion(LocalDateTime.now());
+
+        Bus updatedBus = busRepository.save(bus);
+        return BusResponse.from(updatedBus);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BusResponse> getBusesWithLocation(Long empresaId) {
+        List<Bus> buses = busRepository.findByEmpresaIdAndActivoTrueAndLatitudIsNotNull(empresaId);
+        return buses.stream()
+                .map(BusResponse::from)
+                .collect(Collectors.toList());
     }
 }

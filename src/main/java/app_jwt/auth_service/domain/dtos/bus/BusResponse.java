@@ -22,6 +22,12 @@ public class BusResponse {
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
 
+    // 📍 UBICACIÓN
+    private Double latitud;
+    private Double longitud;
+    private Double velocidad;
+    private LocalDateTime ultimaUbicacion;
+
     public static BusResponse from(Bus bus) {
         return BusResponse.builder()
                 .id(bus.getId())
@@ -35,6 +41,10 @@ public class BusResponse {
                 .empresaId(bus.getEmpresaId())
                 .fechaCreacion(bus.getFechaCreacion())
                 .fechaActualizacion(bus.getFechaActualizacion())
+                .latitud(bus.getLatitud())
+                .longitud(bus.getLongitud())
+                .velocidad(bus.getVelocidad())
+                .ultimaUbicacion(bus.getUltimaUbicacion())
                 .build();
     }
 }

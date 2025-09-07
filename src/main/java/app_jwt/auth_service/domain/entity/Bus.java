@@ -51,9 +51,21 @@ public class Bus {
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
 
-    // ID de la empresa propietaria
     @Column(name = "empresa_id", nullable = false)
     private Long empresaId;
+
+    // 📍 UBICACIÓN ACTUAL - SOLO ESTO ES NUEVO
+    @Column(name = "latitud")
+    private Double latitud;
+
+    @Column(name = "longitud")
+    private Double longitud;
+
+    @Column(name = "velocidad") // km/h
+    private Double velocidad;
+
+    @Column(name = "ultima_ubicacion")
+    private LocalDateTime ultimaUbicacion;
 
     @PreUpdate
     private void preUpdate() {

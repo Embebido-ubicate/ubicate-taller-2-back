@@ -36,4 +36,8 @@ public interface BusRepository extends JpaRepository<Bus, Long> {
     // Query personalizada para estadísticas
     @Query("SELECT b.estado, COUNT(b) FROM Bus b WHERE b.empresaId = :empresaId AND b.activo = true GROUP BY b.estado")
     List<Object[]> findBusStatsByEmpresaId(@Param("empresaId") Long empresaId);
+    
+    List<Bus> findByEmpresaIdAndActivoTrueAndLatitudIsNotNull(Long empresaId);
+
+
 }

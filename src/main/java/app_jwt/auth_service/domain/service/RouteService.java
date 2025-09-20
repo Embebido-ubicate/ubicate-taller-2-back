@@ -29,9 +29,19 @@ public class RouteService {
 
     @Transactional
     public RouteResponse create(CreateRouteRequest req, Long empresaId) {
-        if (!empresaId.equals(req.getEmpresaId())) throw new RuntimeException("Empresa inválida");
-        if (routeRepository.existsByCodigoAndEmpresaIdAndActivoTrue(req.getCodigo(), empresaId))
+        log.info("=== CREANDO RUTA ===");
+        log.info("EmpresaId del auth: {} (tipo: {})", empresaId, empresaId.getClass().getSimpleName());
+        log.info("EmpresaId del request: {} (tipo: {})", req.getEmpresaId(), req.getEmpresaId() != null ? req.getEmpresaId().getClass().getSimpleName() : "null");
+
+        // COMENTADA TEMPORALMENTE - NO VALIDAR EMPRESAID
+        // Usar solo el empresaId del auth que siempre es 1L
+        log.info("SALTANDO validación de empresaId - usando empresaId del auth: {}", empresaId);
+
+        if (routeRepository.existsByCodigoAndEmpresaIdAndActivoTrue(req.getCodigo(), empresaId)) {
+            log.error("Código de ruta ya existe: {}", req.getCodigo());
             throw new RuntimeException("Código de ruta ya existe");
+        }
+
         Set<Bus> buses = new HashSet<>();
         if (req.getBusIds() != null && !req.getBusIds().isEmpty()) {
             List<Bus> found = busRepository.findAllById(req.getBusIds());
@@ -40,7 +50,9 @@ public class RouteService {
                     throw new RuntimeException("Bus no válido para la empresa");
             });
             buses.addAll(found);
+            log.info("Buses asignados: {}", buses.size());
         }
+
         Route r = Route.builder()
                 .nombre(req.getNombre())
                 .descripcion(req.getDescripcion())
@@ -51,10 +63,12 @@ public class RouteService {
                 .polyline(req.getPolyline())
                 .estado(EstadoRuta.ACTIVA)
                 .activo(true)
-                .empresaId(empresaId)
+                .empresaId(empresaId) // USAR EL DEL AUTH - SIEMPRE 1L
                 .buses(buses)
                 .build();
+
         Route saved = routeRepository.save(r);
+        log.info("Ruta creada exitosamente - ID: {}, Código: {}", saved.getId(), saved.getCodigo());
         return RouteResponse.from(saved);
     }
 

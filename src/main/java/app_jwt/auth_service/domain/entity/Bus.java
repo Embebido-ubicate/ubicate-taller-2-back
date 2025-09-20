@@ -67,6 +67,9 @@ public class Bus {
     @Column(name = "ultima_ubicacion")
     private LocalDateTime ultimaUbicacion;
 
+    @OneToOne(mappedBy = "busAsignado", fetch = FetchType.LAZY)
+    private Conductor conductorAsignado;
+
     @PreUpdate
     private void preUpdate() {
         fechaActualizacion = LocalDateTime.now();

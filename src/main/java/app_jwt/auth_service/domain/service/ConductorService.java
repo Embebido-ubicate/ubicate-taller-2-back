@@ -10,68 +10,69 @@ import app_jwt.auth_service.domain.enums.TurnoConductor;
 import app_jwt.auth_service.infra.repository.BusRepository;
 import app_jwt.auth_service.infra.repository.ConductorRepository;
 import app_jwt.auth_service.infra.repository.UsuarioRepository;
+import app_jwt.auth_service.infra.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class ConductorService {
 
     private final ConductorRepository conductorRepository;
     private final UsuarioRepository usuarioRepository;
     private final BusRepository busRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SecurityUtils securityUtils;
 
     @Transactional
-    public ConductorResponse createConductor(CreateConductorRequest request, Long empresaId) {
-        log.info("Creando conductor para empresa ID: {}", empresaId);
+    public ConductorCreatedResponse createConductor(CreateConductorRequest request, Long empresaId) {
+        String email = request.getEmail().toLowerCase(Locale.ROOT).trim();
 
-        // Validaciones
-        if (usuarioRepository.findByCorreo(request.getEmail()).isPresent()) {
+        if (usuarioRepository.findByCorreo(email).isPresent()) {
             throw new RuntimeException("El email ya está registrado");
         }
         if (conductorRepository.existsByNumeroLicenciaAndActivoTrue(request.getNumeroLicencia())) {
             throw new RuntimeException("Ya existe un conductor con ese número de licencia");
         }
 
-        // Crear usuario
+        String username = generateUsername(email);
+        String tempPasswordRaw = generatePasswordFromDniOrRandom(request.getDni());
+        String encodedPassword = passwordEncoder.encode(tempPasswordRaw);
+
         Usuario usuario = Usuario.builder()
-                .username(request.getEmail())
-                .correo(request.getEmail())
-                .nombre(request.getNombre())
-                .apellido(request.getApellido())
-                .telefono(request.getTelefono())
+                .username(username)
+                .correo(email)
+                .nombre(request.getNombre().trim())
+                .apellido(request.getApellido().trim())
+                .telefono(request.getTelefono().trim())
                 .dni(request.getDni())
-                .password(passwordEncoder.encode("TempPass123!"))
+                .password(encodedPassword)
                 .role(Role.CHOFER)
+                .empresaId(empresaId)
                 .build();
 
         Usuario savedUsuario = usuarioRepository.save(usuario);
 
-        // Validar bus si está asignado
         Bus busAsignado = null;
         if (request.getBusAsignadoId() != null) {
             busAsignado = busRepository.findById(request.getBusAsignadoId())
                     .orElseThrow(() -> new RuntimeException("Bus no encontrado"));
-            if (!busAsignado.getEmpresaId().equals(empresaId)) {
-                throw new RuntimeException("El bus no pertenece a su empresa");
-            }
+            securityUtils.validateEmpresaAccess(busAsignado.getEmpresaId(), empresaId, "bus");
         }
 
-        // Crear conductor
         Conductor conductor = Conductor.builder()
                 .usuario(savedUsuario)
-                .numeroLicencia(request.getNumeroLicencia().toUpperCase())
+                .numeroLicencia(request.getNumeroLicencia().toUpperCase(Locale.ROOT).trim())
                 .categoriaLicencia(request.getCategoriaLicencia())
                 .fechaVencimientoLicencia(request.getFechaVencimientoLicencia())
                 .turno(request.getTurno())
@@ -83,9 +84,12 @@ public class ConductorService {
                 .build();
 
         Conductor savedConductor = conductorRepository.save(conductor);
-        log.info("Conductor creado - Licencia: {}", savedConductor.getNumeroLicencia());
 
-        return ConductorResponse.from(savedConductor);
+        return ConductorCreatedResponse.builder()
+                .conductor(ConductorResponse.from(savedConductor))
+                .username(username)
+                .tempPassword(tempPasswordRaw)
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -104,11 +108,10 @@ public class ConductorService {
     public ConductorResponse getConductorById(Long conductorId, Long empresaId) {
         Conductor conductor = conductorRepository.findById(conductorId)
                 .orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
-
-        if (!conductor.getEmpresaId().equals(empresaId) || !conductor.getActivo()) {
+        securityUtils.validateEmpresaAccess(conductor.getEmpresaId(), empresaId, "conductor");
+        if (!conductor.getActivo()) {
             throw new RuntimeException("No tiene permisos para acceder a este conductor");
         }
-
         return ConductorResponse.from(conductor);
     }
 
@@ -116,14 +119,13 @@ public class ConductorService {
     public ConductorResponse updateConductor(Long conductorId, UpdateConductorRequest request, Long empresaId) {
         Conductor conductor = conductorRepository.findById(conductorId)
                 .orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
-
-        if (!conductor.getEmpresaId().equals(empresaId) || !conductor.getActivo()) {
+        securityUtils.validateEmpresaAccess(conductor.getEmpresaId(), empresaId, "conductor");
+        if (!conductor.getActivo()) {
             throw new RuntimeException("No tiene permisos para modificar este conductor");
         }
 
-        // Actualizar campos
         if (request.getTelefono() != null) {
-            conductor.getUsuario().setTelefono(request.getTelefono());
+            conductor.getUsuario().setTelefono(request.getTelefono().trim());
         }
         if (request.getFechaVencimientoLicencia() != null) {
             conductor.setFechaVencimientoLicencia(request.getFechaVencimientoLicencia());
@@ -137,9 +139,7 @@ public class ConductorService {
         if (request.getBusAsignadoId() != null) {
             Bus bus = busRepository.findById(request.getBusAsignadoId())
                     .orElseThrow(() -> new RuntimeException("Bus no encontrado"));
-            if (!bus.getEmpresaId().equals(empresaId)) {
-                throw new RuntimeException("El bus no pertenece a su empresa");
-            }
+            securityUtils.validateEmpresaAccess(bus.getEmpresaId(), empresaId, "bus");
             conductor.setBusAsignado(bus);
         }
 
@@ -151,11 +151,7 @@ public class ConductorService {
     public void deleteConductor(Long conductorId, Long empresaId) {
         Conductor conductor = conductorRepository.findById(conductorId)
                 .orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
-
-        if (!conductor.getEmpresaId().equals(empresaId)) {
-            throw new RuntimeException("No tiene permisos para eliminar este conductor");
-        }
-
+        securityUtils.validateEmpresaAccess(conductor.getEmpresaId(), empresaId, "conductor");
         conductor.setActivo(false);
         conductorRepository.save(conductor);
     }
@@ -164,11 +160,10 @@ public class ConductorService {
     public ConductorResponse cambiarEstado(Long conductorId, EstadoConductor estado, Long empresaId) {
         Conductor conductor = conductorRepository.findById(conductorId)
                 .orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
-
-        if (!conductor.getEmpresaId().equals(empresaId) || !conductor.getActivo()) {
+        securityUtils.validateEmpresaAccess(conductor.getEmpresaId(), empresaId, "conductor");
+        if (!conductor.getActivo()) {
             throw new RuntimeException("No tiene permisos para modificar este conductor");
         }
-
         conductor.setEstado(estado);
         Conductor updatedConductor = conductorRepository.save(conductor);
         return ConductorResponse.from(updatedConductor);
@@ -178,18 +173,13 @@ public class ConductorService {
     public ConductorResponse asignarBus(Long conductorId, Long busId, Long empresaId) {
         Conductor conductor = conductorRepository.findById(conductorId)
                 .orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
-
-        if (!conductor.getEmpresaId().equals(empresaId) || !conductor.getActivo()) {
+        securityUtils.validateEmpresaAccess(conductor.getEmpresaId(), empresaId, "conductor");
+        if (!conductor.getActivo()) {
             throw new RuntimeException("No tiene permisos para modificar este conductor");
         }
-
         Bus bus = busRepository.findById(busId)
                 .orElseThrow(() -> new RuntimeException("Bus no encontrado"));
-
-        if (!bus.getEmpresaId().equals(empresaId)) {
-            throw new RuntimeException("El bus no pertenece a su empresa");
-        }
-
+        securityUtils.validateEmpresaAccess(bus.getEmpresaId(), empresaId, "bus");
         conductor.setBusAsignado(bus);
         Conductor updatedConductor = conductorRepository.save(conductor);
         return ConductorResponse.from(updatedConductor);
@@ -199,11 +189,10 @@ public class ConductorService {
     public ConductorResponse removerBus(Long conductorId, Long empresaId) {
         Conductor conductor = conductorRepository.findById(conductorId)
                 .orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
-
-        if (!conductor.getEmpresaId().equals(empresaId) || !conductor.getActivo()) {
+        securityUtils.validateEmpresaAccess(conductor.getEmpresaId(), empresaId, "conductor");
+        if (!conductor.getActivo()) {
             throw new RuntimeException("No tiene permisos para modificar este conductor");
         }
-
         conductor.setBusAsignado(null);
         Conductor updatedConductor = conductorRepository.save(conductor);
         return ConductorResponse.from(updatedConductor);
@@ -244,5 +233,33 @@ public class ConductorService {
                 .licenciasVencidas(licenciasVencidas)
                 .licenciasPorVencer(licenciasPorVencer)
                 .build();
+    }
+
+    private String generateUsername(String email) {
+        String base = email.split("@")[0];
+        String candidate = base;
+        int i = 1;
+        while (usuarioRepository.findByUsername(candidate).isPresent()) {
+            candidate = base + i;
+            i++;
+        }
+        return candidate;
+    }
+
+    private String generatePasswordFromDniOrRandom(String dni) {
+        if (dni != null && dni.matches("\\d{8}")) {
+            String first4 = dni.substring(0, 4);
+            String last2 = dni.substring(6, 8);
+            return first4 + last2 + "!";
+        }
+        return randomAlnum(10);
+    }
+
+    private String randomAlnum(int len) {
+        final String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+        SecureRandom r = new SecureRandom();
+        StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < len; i++) sb.append(chars.charAt(r.nextInt(chars.length())));
+        return sb.toString();
     }
 }

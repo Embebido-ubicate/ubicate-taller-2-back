@@ -25,4 +25,7 @@ public class CreateBusRequest {
 
     @Size(max = 50, message = "El color no puede exceder 50 caracteres")
     private String color;
+
+    // 🚌 RUTA ASIGNADA (OPCIONAL AL CREAR)
+    private Long rutaId;
 }

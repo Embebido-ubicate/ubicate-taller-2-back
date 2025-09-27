@@ -15,9 +15,11 @@ public class BusStatsResponse {
     private Long busesEnMantenimiento;
     private Map<String, Long> estadoPorCantidad;
 
-    // Para tu dashboard específico
     private Long conectados;
     private Long enMovimiento;
     private Long detenidos;
     private Long sinConexion;
+
+    private Long busesConRuta;
+    private Long busesSinRuta;
 }

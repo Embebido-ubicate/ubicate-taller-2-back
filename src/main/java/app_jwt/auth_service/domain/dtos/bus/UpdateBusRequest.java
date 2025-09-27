@@ -21,4 +21,6 @@ public class UpdateBusRequest {
     private String color;
 
     private EstadoBus estado;
+
+    private Long rutaId;
 }

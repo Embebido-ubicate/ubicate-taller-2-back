@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,23 +19,28 @@ import java.util.Map;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleRSE(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        if (status == null) status = HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status)
+                .body(new ErrorResponse("RSE_" + status.value(), ex.getReason()));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
         log.error("Runtime exception: {}", ex.getMessage());
 
-        // Casos específicos
-        if (ex.getMessage().contains("ya está registrado") ||
-                ex.getMessage().contains("ya existe")) {
+        if (ex.getMessage() != null && (ex.getMessage().contains("ya está registrado") ||
+                ex.getMessage().contains("ya existe"))) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(new ErrorResponse("USER_001", ex.getMessage()));
         }
-
-        if (ex.getMessage().contains("no encontrado")) {
+        if (ex.getMessage() != null && ex.getMessage().contains("no encontrado")) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ErrorResponse("USER_002", ex.getMessage()));
         }
-
-        if (ex.getMessage().contains("Credenciales inválidas")) {
+        if (ex.getMessage() != null && ex.getMessage().contains("Credenciales inválidas")) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("AUTH_001", ex.getMessage()));
         }

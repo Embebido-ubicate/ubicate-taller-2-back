@@ -7,6 +7,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Data
 @Builder
@@ -24,24 +25,48 @@ public class RouteResponse {
     private Long empresaId;
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
-    private List<Long> busIds;
 
-    public static RouteResponse from(Route r) {
+    // 🚌 BUSES DE ESTA RUTA
+    private List<BusBasicInfo> buses;
+    private Integer totalBuses;
+
+    @Data
+    @Builder
+    public static class BusBasicInfo {
+        private Long id;
+        private String placa;
+        private String modelo;
+        private String estado;
+    }
+
+    public static RouteResponse from(Route route) {
+        List<BusBasicInfo> busesInfo = route.getBuses() != null ?
+                route.getBuses().stream()
+                        .filter(bus -> Boolean.TRUE.equals(bus.getActivo()))
+                        .map(bus -> BusBasicInfo.builder()
+                                .id(bus.getId())
+                                .placa(bus.getPlaca())
+                                .modelo(bus.getModelo())
+                                .estado(bus.getEstado().name())
+                                .build())
+                        .collect(Collectors.toList()) : List.of();
+
         return RouteResponse.builder()
-                .id(r.getId())
-                .nombre(r.getNombre())
-                .descripcion(r.getDescripcion())
-                .codigo(r.getCodigo())
-                .origen(r.getOrigen())
-                .destino(r.getDestino())
-                .colorHex(r.getColorHex())
-                .polyline(r.getPolyline())
-                .estado(r.getEstado())
-                .activo(r.getActivo())
-                .empresaId(r.getEmpresaId())
-                .fechaCreacion(r.getFechaCreacion())
-                .fechaActualizacion(r.getFechaActualizacion())
-                .busIds(r.getBuses().stream().map(b -> b.getId()).toList())
+                .id(route.getId())
+                .nombre(route.getNombre())
+                .descripcion(route.getDescripcion())
+                .codigo(route.getCodigo())
+                .origen(route.getOrigen())
+                .destino(route.getDestino())
+                .colorHex(route.getColorHex())
+                .polyline(route.getPolyline())
+                .estado(route.getEstado())
+                .activo(route.getActivo())
+                .empresaId(route.getEmpresaId())
+                .fechaCreacion(route.getFechaCreacion())
+                .fechaActualizacion(route.getFechaActualizacion())
+                .buses(busesInfo)
+                .totalBuses(busesInfo.size())
                 .build();
     }
 }

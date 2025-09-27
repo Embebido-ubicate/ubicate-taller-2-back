@@ -3,7 +3,7 @@ package app_jwt.auth_service.controller;
 import app_jwt.auth_service.domain.dtos.bus.*;
 import app_jwt.auth_service.domain.enums.EstadoBus;
 import app_jwt.auth_service.domain.service.BusService;
-import app_jwt.auth_service.infra.security.JwtService;
+import app_jwt.auth_service.infra.security.AuthUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,13 +26,13 @@ import java.util.List;
 public class BusController {
 
     private final BusService busService;
-    private final JwtService jwtService;
+    private final AuthUtils authUtils;
 
     @PostMapping
     public ResponseEntity<BusResponse> createBus(
             @Valid @RequestBody CreateBusRequest request,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         BusResponse response = busService.createBus(request, empresaId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -40,8 +40,16 @@ public class BusController {
     @GetMapping
     public ResponseEntity<Page<BusResponse>> getBuses(
             Authentication authentication,
+            @RequestParam(required = false) Long rutaId,
             @PageableDefault(size = 20) Pageable pageable) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
+
+        if (rutaId != null) {
+            // Filtrar por ruta específica
+            Page<BusResponse> buses = busService.getBusesByRuta(rutaId, empresaId, pageable);
+            return ResponseEntity.ok(buses);
+        }
+
         Page<BusResponse> buses = busService.getBusesByEmpresa(empresaId, pageable);
         return ResponseEntity.ok(buses);
     }
@@ -50,7 +58,7 @@ public class BusController {
     public ResponseEntity<BusResponse> getBusById(
             @PathVariable Long busId,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         BusResponse bus = busService.getBusById(busId, empresaId);
         return ResponseEntity.ok(bus);
     }
@@ -60,8 +68,27 @@ public class BusController {
             @PathVariable Long busId,
             @Valid @RequestBody UpdateBusRequest request,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         BusResponse response = busService.updateBus(busId, request, empresaId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{busId}/asignar-ruta")
+    public ResponseEntity<BusResponse> asignarRuta(
+            @PathVariable Long busId,
+            @RequestParam Long rutaId,
+            Authentication authentication) {
+        Long empresaId = authUtils.getEmpresaId(authentication);
+        BusResponse response = busService.asignarRuta(busId, rutaId, empresaId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{busId}/remover-ruta")
+    public ResponseEntity<BusResponse> removerRuta(
+            @PathVariable Long busId,
+            Authentication authentication) {
+        Long empresaId = authUtils.getEmpresaId(authentication);
+        BusResponse response = busService.removerRuta(busId, empresaId);
         return ResponseEntity.ok(response);
     }
 
@@ -69,7 +96,7 @@ public class BusController {
     public ResponseEntity<ApiResponse> deleteBus(
             @PathVariable Long busId,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         busService.deleteBus(busId, empresaId);
         return ResponseEntity.ok(new ApiResponse("Bus eliminado exitosamente", true));
     }
@@ -79,7 +106,7 @@ public class BusController {
             @PathVariable Long busId,
             @RequestParam EstadoBus estado,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         BusResponse response = busService.changeEstadoBus(busId, estado, empresaId);
         return ResponseEntity.ok(response);
     }
@@ -88,38 +115,33 @@ public class BusController {
     public ResponseEntity<List<BusResponse>> getBusesByEstado(
             @PathVariable EstadoBus estado,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         List<BusResponse> buses = busService.getBusesByEstado(empresaId, estado);
         return ResponseEntity.ok(buses);
     }
 
     @GetMapping("/stats")
     public ResponseEntity<BusStatsResponse> getBusStats(Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         BusStatsResponse stats = busService.getBusStats(empresaId);
         return ResponseEntity.ok(stats);
     }
 
-    private Long getEmpresaIdFromAuth(Authentication authentication) {
-        String email = authentication.getName();
-        return 1L;
-    }
-
-    @PutMapping("/{busId}/location")
+    // 📍 UBICACIÓN EN TIEMPO REAL
+    @PutMapping("/{busId}/ubicacion")
     public ResponseEntity<BusResponse> updateBusLocation(
             @PathVariable Long busId,
             @Valid @RequestBody UpdateLocationRequest request,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         BusResponse response = busService.updateBusLocation(busId, request, empresaId);
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/ubicaciones")
+    @GetMapping("/con-ubicacion")
     public ResponseEntity<List<BusResponse>> getBusesWithLocation(Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         List<BusResponse> buses = busService.getBusesWithLocation(empresaId);
         return ResponseEntity.ok(buses);
     }
-
 }

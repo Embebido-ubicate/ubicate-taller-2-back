@@ -28,9 +28,7 @@ public class CreateRouteRequest {
     @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "El color debe ser un hex válido (ej: #FF0000)")
     private String colorHex;
 
-    private String polyline; // Encoded polyline de Google Maps
+    private String polyline;
 
-    private Long empresaId; // Se eliminará del request, se obtiene del auth
-
-    private List<Long> busIds; // IDs de buses asignados a la ruta
+    private List<Long> busIds;
 }

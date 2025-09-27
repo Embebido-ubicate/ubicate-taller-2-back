@@ -6,7 +6,6 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,6 @@ import java.util.Map;
 import java.util.function.Function;
 
 @Service
-@Slf4j
 public class JwtService {
 
     @Value("${jwt.secret}")
@@ -28,8 +26,13 @@ public class JwtService {
     private long jwtExpiration;
 
     public String getToken(UserDetails user, Usuario usuario) {
+        if (usuario.getEmpresaId() == null) {
+            throw new IllegalStateException("No se puede generar token sin empresaId");
+        }
+
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", usuario.getId());
+        claims.put("empresaId", usuario.getEmpresaId());
         claims.put("role", usuario.getRole().name());
         claims.put("email", usuario.getCorreo());
         claims.put("nombre", usuario.getNombre());
@@ -53,6 +56,9 @@ public class JwtService {
 
     private Key getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException("jwt.secret demasiado corto para HS256 (min 256 bits en base64)");
+        }
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -63,9 +69,11 @@ public class JwtService {
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
             final String username = getUsernameFromToken(token);
-            return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+            Long empresaId = getEmpresaId(token);
+            return username.equals(userDetails.getUsername()) &&
+                    !isTokenExpired(token) &&
+                    empresaId != null;
         } catch (Exception e) {
-            log.error("Token validation error: {}", e.getMessage());
             return false;
         }
     }
@@ -78,6 +86,7 @@ public class JwtService {
     private Claims getAllClaimsFromToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
+                .setAllowedClockSkewSeconds(60)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -86,6 +95,20 @@ public class JwtService {
     public <T> T getClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = getAllClaimsFromToken(token);
         return claimsResolver.apply(claims);
+    }
+
+    public Long getEmpresaId(String token) {
+        Number n = getClaim(token, c -> c.get("empresaId", Number.class));
+        return n != null ? n.longValue() : null;
+    }
+
+    public Long getUserId(String token) {
+        Number n = getClaim(token, c -> c.get("userId", Number.class));
+        return n != null ? n.longValue() : null;
+    }
+
+    public String getRole(String token) {
+        return getClaim(token, c -> c.get("role", String.class));
     }
 
     private boolean isTokenExpired(String token) {

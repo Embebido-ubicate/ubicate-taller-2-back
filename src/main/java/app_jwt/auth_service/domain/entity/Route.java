@@ -1,12 +1,13 @@
 package app_jwt.auth_service.domain.entity;
 
 import app_jwt.auth_service.domain.enums.EstadoRuta;
+import app_jwt.auth_service.infra.security.SecurityUtils.EmpresaAware;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "rutas", uniqueConstraints = {
@@ -18,7 +19,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
-public class Route {
+public class Route implements EmpresaAware {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -38,7 +39,6 @@ public class Route {
     @Column(length = 80)
     private String destino;
 
-    @Column(length = 9)
     private String colorHex;
 
     @Lob
@@ -62,17 +62,17 @@ public class Route {
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
 
-    @ManyToMany
-    @JoinTable(
-            name = "ruta_buses",
-            joinColumns = @JoinColumn(name = "ruta_id"),
-            inverseJoinColumns = @JoinColumn(name = "bus_id")
-    )
+    @OneToMany(mappedBy = "rutaAsignada", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @Builder.Default
-    private Set<Bus> buses = new HashSet<>();
+    private List<Bus> buses = new ArrayList<>();
 
     @PreUpdate
     private void preUpdate() {
         fechaActualizacion = LocalDateTime.now();
+    }
+
+    @Override
+    public Long getEmpresaId() {
+        return this.empresaId;
     }
 }

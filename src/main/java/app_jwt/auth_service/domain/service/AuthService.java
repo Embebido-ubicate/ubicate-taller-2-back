@@ -9,17 +9,19 @@ import app_jwt.auth_service.domain.enums.Role;
 import app_jwt.auth_service.infra.repository.UsuarioRepository;
 import app_jwt.auth_service.infra.security.JwtService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
@@ -29,12 +31,9 @@ public class AuthService {
 
     @Transactional
     public AuthResponse registerEmpresa(RegisterRequest request) {
-        if (usuarioRepository.findByCorreo(request.getEmail()).isPresent()) {
-            throw new RuntimeException("El email ya está registrado");
-        }
-        if (usuarioRepository.findByUsername(request.getEmail()).isPresent()) {
-            throw new RuntimeException("El usuario ya existe");
-        }
+        validateRegisterRequest(request);
+
+        Long nuevaEmpresaId = generateUniqueEmpresaId();
 
         Usuario usuario = Usuario.builder()
                 .username(request.getEmail())
@@ -45,52 +44,29 @@ public class AuthService {
                 .dni(request.getDni())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.EMPRESA)
+                .empresaId(nuevaEmpresaId)
                 .build();
 
-        usuarioRepository.save(usuario);
+        Usuario usuarioGuardado = usuarioRepository.save(usuario);
+        String token = jwtService.getToken(usuarioGuardado, usuarioGuardado);
+        UserResponse userResponse = UserResponse.from(usuarioGuardado);
 
-        String token = jwtService.getToken(usuario, usuario);
-
-        return AuthResponse.builder()
-                .token(token)
-                .user(UserResponse.from(usuario))
-                .build();
+        return AuthResponse.success(token, userResponse);
     }
 
     @Transactional
     public AuthResponse registerChofer(RegisterRequest request) {
-        if (usuarioRepository.findByCorreo(request.getEmail()).isPresent()) {
-            throw new RuntimeException("El email ya está registrado");
-        }
-        if (usuarioRepository.findByUsername(request.getEmail()).isPresent()) {
-            throw new RuntimeException("El usuario ya existe");
-        }
-
-        Usuario usuario = Usuario.builder()
-                .username(request.getEmail())
-                .correo(request.getEmail())
-                .nombre(request.getNombre())
-                .apellido(request.getApellido())
-                .telefono(request.getTelefono())
-                .dni(request.getDni())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.CHOFER)
-                .build();
-
-        usuarioRepository.save(usuario);
-
-        String token = jwtService.getToken(usuario, usuario);
-
-        return AuthResponse.builder()
-                .token(token)
-                .user(UserResponse.from(usuario))
-                .build();
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Los choferes deben ser creados desde el panel de administración de la empresa. " +
+                        "Contacte a su administrador para obtener acceso.");
     }
 
     public AuthResponse login(LoginRequest request) {
         try {
             Usuario usuario = usuarioRepository.findByCorreo(request.getEmail())
-                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+            validateUserForLogin(usuario);
 
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -100,17 +76,39 @@ public class AuthService {
             );
 
             String token = jwtService.getToken(usuario, usuario);
+            UserResponse userResponse = UserResponse.from(usuario);
 
-            log.info("Login exitoso para usuario: {}", usuario.getCorreo());
-
-            return AuthResponse.builder()
-                    .token(token)
-                    .user(UserResponse.from(usuario))
-                    .build();
+            return AuthResponse.success(token, userResponse);
 
         } catch (AuthenticationException e) {
-            log.error("Error de autenticación para email: {}", request.getEmail());
-            throw new RuntimeException("Credenciales inválidas");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales inválidas");
         }
+    }
+
+    private void validateRegisterRequest(RegisterRequest request) {
+        if (usuarioRepository.findByCorreo(request.getEmail()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El email ya está registrado");
+        }
+        if (usuarioRepository.findByUsername(request.getEmail()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El usuario ya existe");
+        }
+    }
+
+    private void validateUserForLogin(Usuario usuario) {
+        if (usuario.getEmpresaId() == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario sin empresa asignada");
+        }
+    }
+
+    private Long generateUniqueEmpresaId() {
+        long timestamp = System.currentTimeMillis();
+        int hashCode = UUID.randomUUID().toString().hashCode();
+        long empresaId = Math.abs(timestamp + hashCode);
+
+        while (usuarioRepository.findByEmpresaId(empresaId).isPresent()) {
+            empresaId = Math.abs(System.currentTimeMillis() + UUID.randomUUID().toString().hashCode());
+        }
+
+        return empresaId;
     }
 }

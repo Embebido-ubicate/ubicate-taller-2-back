@@ -1,3 +1,4 @@
+// src/main/java/app_jwt/auth_service/controller/ConductorController.java
 package app_jwt.auth_service.controller;
 
 import app_jwt.auth_service.domain.dtos.bus.ApiResponse;
@@ -5,9 +6,9 @@ import app_jwt.auth_service.domain.dtos.conductor.*;
 import app_jwt.auth_service.domain.enums.EstadoConductor;
 import app_jwt.auth_service.domain.enums.TurnoConductor;
 import app_jwt.auth_service.domain.service.ConductorService;
+import app_jwt.auth_service.infra.security.AuthUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -22,18 +23,18 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/conductores")
 @RequiredArgsConstructor
-@Slf4j
 @PreAuthorize("hasRole('EMPRESA')")
 public class ConductorController {
 
     private final ConductorService conductorService;
+    private final AuthUtils authUtils;
 
     @PostMapping
-    public ResponseEntity<ConductorResponse> createConductor(
+    public ResponseEntity<ConductorCreatedResponse> createConductor(
             @Valid @RequestBody CreateConductorRequest request,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
-        ConductorResponse response = conductorService.createConductor(request, empresaId);
+        Long empresaId = authUtils.getEmpresaId(authentication);
+        ConductorCreatedResponse response = conductorService.createConductor(request, empresaId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -41,7 +42,7 @@ public class ConductorController {
     public ResponseEntity<Page<ConductorResponse>> getConductores(
             Authentication authentication,
             @PageableDefault(size = 20) Pageable pageable) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         Page<ConductorResponse> conductores = conductorService.getConductores(empresaId, pageable);
         return ResponseEntity.ok(conductores);
     }
@@ -51,7 +52,7 @@ public class ConductorController {
             @RequestParam(required = false) String q,
             Authentication authentication,
             @PageableDefault(size = 20) Pageable pageable) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         Page<ConductorResponse> conductores = conductorService.searchConductores(empresaId, q, pageable);
         return ResponseEntity.ok(conductores);
     }
@@ -60,7 +61,7 @@ public class ConductorController {
     public ResponseEntity<ConductorResponse> getConductorById(
             @PathVariable Long conductorId,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         ConductorResponse conductor = conductorService.getConductorById(conductorId, empresaId);
         return ResponseEntity.ok(conductor);
     }
@@ -70,7 +71,7 @@ public class ConductorController {
             @PathVariable Long conductorId,
             @Valid @RequestBody UpdateConductorRequest request,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         ConductorResponse response = conductorService.updateConductor(conductorId, request, empresaId);
         return ResponseEntity.ok(response);
     }
@@ -79,7 +80,7 @@ public class ConductorController {
     public ResponseEntity<ApiResponse> deleteConductor(
             @PathVariable Long conductorId,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         conductorService.deleteConductor(conductorId, empresaId);
         return ResponseEntity.ok(new ApiResponse("Conductor eliminado exitosamente", true));
     }
@@ -89,7 +90,7 @@ public class ConductorController {
             @PathVariable Long conductorId,
             @RequestParam EstadoConductor estado,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         ConductorResponse response = conductorService.cambiarEstado(conductorId, estado, empresaId);
         return ResponseEntity.ok(response);
     }
@@ -99,7 +100,7 @@ public class ConductorController {
             @PathVariable Long conductorId,
             @RequestParam Long busId,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         ConductorResponse response = conductorService.asignarBus(conductorId, busId, empresaId);
         return ResponseEntity.ok(response);
     }
@@ -108,7 +109,7 @@ public class ConductorController {
     public ResponseEntity<ConductorResponse> removerBus(
             @PathVariable Long conductorId,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         ConductorResponse response = conductorService.removerBus(conductorId, empresaId);
         return ResponseEntity.ok(response);
     }
@@ -117,7 +118,7 @@ public class ConductorController {
     public ResponseEntity<List<ConductorResponse>> getConductoresByEstado(
             @PathVariable EstadoConductor estado,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         List<ConductorResponse> conductores = conductorService.getConductoresByEstado(empresaId, estado);
         return ResponseEntity.ok(conductores);
     }
@@ -126,20 +127,15 @@ public class ConductorController {
     public ResponseEntity<List<ConductorResponse>> getConductoresByTurno(
             @PathVariable TurnoConductor turno,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         List<ConductorResponse> conductores = conductorService.getConductoresByTurno(empresaId, turno);
         return ResponseEntity.ok(conductores);
     }
 
     @GetMapping("/stats")
     public ResponseEntity<ConductorStatsResponse> getStats(Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+        Long empresaId = authUtils.getEmpresaId(authentication);
         ConductorStatsResponse stats = conductorService.getStats(empresaId);
         return ResponseEntity.ok(stats);
-    }
-
-    private Long getEmpresaIdFromAuth(Authentication authentication) {
-        String email = authentication.getName();
-        return 1L; // Por ahora hardcodeado
     }
 }

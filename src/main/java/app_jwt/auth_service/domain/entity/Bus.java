@@ -1,6 +1,7 @@
 package app_jwt.auth_service.domain.entity;
 
 import app_jwt.auth_service.domain.enums.EstadoBus;
+import app_jwt.auth_service.infra.security.SecurityUtils.EmpresaAware;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
-public class Bus {
+public class Bus implements EmpresaAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,14 +55,17 @@ public class Bus {
     @Column(name = "empresa_id", nullable = false)
     private Long empresaId;
 
-    // 📍 UBICACIÓN ACTUAL - SOLO ESTO ES NUEVO
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ruta_id")
+    private Route rutaAsignada;
+
     @Column(name = "latitud")
     private Double latitud;
 
     @Column(name = "longitud")
     private Double longitud;
 
-    @Column(name = "velocidad") // km/h
+    @Column(name = "velocidad")
     private Double velocidad;
 
     @Column(name = "ultima_ubicacion")
@@ -73,5 +77,10 @@ public class Bus {
     @PreUpdate
     private void preUpdate() {
         fechaActualizacion = LocalDateTime.now();
+    }
+
+    @Override
+    public Long getEmpresaId() {
+        return this.empresaId;
     }
 }

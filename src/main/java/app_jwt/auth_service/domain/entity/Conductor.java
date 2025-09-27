@@ -3,6 +3,7 @@ package app_jwt.auth_service.domain.entity;
 import app_jwt.auth_service.domain.enums.CategoriaLicencia;
 import app_jwt.auth_service.domain.enums.EstadoConductor;
 import app_jwt.auth_service.domain.enums.TurnoConductor;
+import app_jwt.auth_service.infra.security.SecurityUtils.EmpresaAware;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,7 +21,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(of = "id")
-public class Conductor {
+public class Conductor implements EmpresaAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -68,7 +69,6 @@ public class Conductor {
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
 
-    // Campos adicionales para el dashboard
     @Column(name = "experiencia_años")
     private Integer experienciaAnios;
 
@@ -80,13 +80,16 @@ public class Conductor {
         fechaActualizacion = LocalDateTime.now();
     }
 
-    // Helper method para verificar si la licencia está vencida
     public boolean isLicenciaVencida() {
         return fechaVencimientoLicencia.isBefore(LocalDate.now());
     }
 
-    // Helper method para verificar si la licencia vence pronto (30 días)
     public boolean isLicenciaPorVencer() {
         return fechaVencimientoLicencia.isBefore(LocalDate.now().plusDays(30));
+    }
+
+    @Override
+    public Long getEmpresaId() {
+        return this.empresaId;
     }
 }

@@ -6,12 +6,9 @@ import app_jwt.auth_service.domain.dtos.route.RouteResponse;
 import app_jwt.auth_service.domain.dtos.route.UpdateRouteRequest;
 import app_jwt.auth_service.domain.enums.EstadoRuta;
 import app_jwt.auth_service.domain.service.RouteService;
+import app_jwt.auth_service.infra.security.AuthUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,65 +20,52 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/rutas")
 @RequiredArgsConstructor
-@Slf4j
 @PreAuthorize("hasRole('EMPRESA')")
 public class RouteController {
 
     private final RouteService routeService;
+    private final AuthUtils authUtils;
 
     @PostMapping
     public ResponseEntity<RouteResponse> create(
             @Valid @RequestBody CreateRouteRequest request,
             Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
-        RouteResponse resp = routeService.create(request, empresaId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+        Long empresaId = authUtils.getEmpresaId(authentication);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(routeService.create(request, empresaId));
     }
 
     @GetMapping
-    public ResponseEntity<Page<RouteResponse>> list(
+    public ResponseEntity<List<RouteResponse>> listAll(
             Authentication authentication,
-            @PageableDefault(size = 20) Pageable pageable) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
-        return ResponseEntity.ok(routeService.list(empresaId, pageable));
+            @RequestParam(required = false) EstadoRuta estado) {  // Cambiado a EstadoRuta
+        Long empresaId = authUtils.getEmpresaId(authentication);
+        if (estado != null) {
+            return ResponseEntity.ok(routeService.listByEstado(empresaId, estado));
+        }
+        return ResponseEntity.ok(routeService.listAll(empresaId));
     }
-
+    // 🔹 detalle de una ruta por id (para al hacer click)
     @GetMapping("/{routeId}")
-    public ResponseEntity<RouteResponse> getById(
-            @PathVariable Long routeId,
-            Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+    public ResponseEntity<RouteResponse> getById(@PathVariable Long routeId,
+                                                 Authentication authentication) {
+        Long empresaId = authUtils.getEmpresaId(authentication);
         return ResponseEntity.ok(routeService.getById(routeId, empresaId));
     }
 
     @PutMapping("/{routeId}")
-    public ResponseEntity<RouteResponse> update(
-            @PathVariable Long routeId,
-            @Valid @RequestBody UpdateRouteRequest request,
-            Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+    public ResponseEntity<RouteResponse> update(@PathVariable Long routeId,
+                                                @Valid @RequestBody UpdateRouteRequest request,
+                                                Authentication authentication) {
+        Long empresaId = authUtils.getEmpresaId(authentication);
         return ResponseEntity.ok(routeService.update(routeId, request, empresaId));
     }
 
     @DeleteMapping("/{routeId}")
-    public ResponseEntity<ApiResponse> delete(
-            @PathVariable Long routeId,
-            Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
+    public ResponseEntity<ApiResponse> delete(@PathVariable Long routeId,
+                                              Authentication authentication) {
+        Long empresaId = authUtils.getEmpresaId(authentication);
         routeService.delete(routeId, empresaId);
         return ResponseEntity.ok(new ApiResponse("Ruta eliminada exitosamente", true));
-    }
-
-    @GetMapping("/estado/{estado}")
-    public ResponseEntity<List<RouteResponse>> listByEstado(
-            @PathVariable EstadoRuta estado,
-            Authentication authentication) {
-        Long empresaId = getEmpresaIdFromAuth(authentication);
-        return ResponseEntity.ok(routeService.listByEstado(empresaId, estado));
-    }
-
-    private Long getEmpresaIdFromAuth(Authentication authentication) {
-        String email = authentication.getName();
-        return 1L;
     }
 }

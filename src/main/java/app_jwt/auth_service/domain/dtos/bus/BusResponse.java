@@ -22,13 +22,39 @@ public class BusResponse {
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
 
-    // 📍 UBICACIÓN
+    // 📍 UBICACIÓN EN TIEMPO REAL
     private Double latitud;
     private Double longitud;
     private Double velocidad;
     private LocalDateTime ultimaUbicacion;
 
+    // 🚌 INFORMACIÓN DE RUTA
+    private RutaInfo ruta;
+
+    @Data
+    @Builder
+    public static class RutaInfo {
+        private Long id;
+        private String nombre;
+        private String codigo;
+        private String colorHex;
+        private String origen;
+        private String destino;
+    }
+
     public static BusResponse from(Bus bus) {
+        RutaInfo rutaInfo = null;
+        if (bus.getRutaAsignada() != null) {
+            rutaInfo = RutaInfo.builder()
+                    .id(bus.getRutaAsignada().getId())
+                    .nombre(bus.getRutaAsignada().getNombre())
+                    .codigo(bus.getRutaAsignada().getCodigo())
+                    .colorHex(bus.getRutaAsignada().getColorHex())
+                    .origen(bus.getRutaAsignada().getOrigen())
+                    .destino(bus.getRutaAsignada().getDestino())
+                    .build();
+        }
+
         return BusResponse.builder()
                 .id(bus.getId())
                 .placa(bus.getPlaca())
@@ -45,6 +71,7 @@ public class BusResponse {
                 .longitud(bus.getLongitud())
                 .velocidad(bus.getVelocidad())
                 .ultimaUbicacion(bus.getUltimaUbicacion())
+                .ruta(rutaInfo)
                 .build();
     }
 }

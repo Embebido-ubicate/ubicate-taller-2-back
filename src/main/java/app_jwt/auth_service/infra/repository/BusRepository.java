@@ -48,4 +48,7 @@ public interface BusRepository extends JpaRepository<Bus, Long> {
 
     @Query("SELECT b.estado, COUNT(b) FROM Bus b WHERE b.empresaId = :empresaId AND b.activo = true GROUP BY b.estado")
     List<Object[]> findBusStatsByEmpresaId(@Param("empresaId") Long empresaId);
+
+    @Query("SELECT b FROM Bus b LEFT JOIN FETCH b.rutaAsignada WHERE b.activo = true AND b.latitud IS NOT NULL AND b.longitud IS NOT NULL")
+    List<Bus> findAllActivoTrueAndLatitudIsNotNullWithRoute();
 }

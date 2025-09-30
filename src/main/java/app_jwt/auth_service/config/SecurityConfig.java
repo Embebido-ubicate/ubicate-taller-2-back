@@ -26,8 +26,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final AuthenticationProvider authenticationProvider;
-    private final JwtAuthenticationEntryPoint jwtEntryPoint;        // <-- nuevo
-    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;    // <-- nuevo
+    private final JwtAuthenticationEntryPoint jwtEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -36,15 +36,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint(jwtEntryPoint)           // 401 cuando NO hay auth
-                        .accessDeniedHandler(jwtAccessDeniedHandler)       // 403 cuando falta rol
+                        .authenticationEntryPoint(jwtEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // permitir preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // público solo auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        // todo lo demás requiere token
+                        .requestMatchers("/api/public/**").permitAll()  // Agregar endpoints públicos
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider)
@@ -56,11 +54,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         var c = new CorsConfiguration();
-        c.setAllowedOrigins(List.of("http://localhost:4200")); // ajusta dominios
-        c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        c.setAllowedHeaders(List.of("Authorization","Content-Type","Accept"));
+        c.setAllowedOrigins(List.of(
+                "http://localhost:4200",
+                "http://10.0.2.2:8080",
+                "*"
+        ));
+        c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        c.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         c.setExposedHeaders(List.of("Authorization"));
-        c.setAllowCredentials(false); // pon true si usas cookies
+        c.setAllowCredentials(false);
+
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", c);
         return source;

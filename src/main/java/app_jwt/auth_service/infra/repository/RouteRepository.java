@@ -29,4 +29,14 @@ public interface RouteRepository extends JpaRepository<Route, Long> {
 
     @Query("SELECT COUNT(b) FROM Bus b WHERE b.rutaAsignada.id = :routeId AND b.activo = true")
     Long countBusesByRouteId(@Param("routeId") Long routeId);
+    // Agregar este método al final de RouteRepository.java
+
+    @Query("SELECT r FROM Route r LEFT JOIN FETCH r.buses WHERE r.activo = true AND r.estado = :estado")
+    List<Route> findAllActivoTrueAndEstado(@Param("estado") EstadoRuta estado);
+
+    @Query("SELECT r FROM Route r LEFT JOIN FETCH r.buses WHERE r.empresaId = :empresaId AND r.activo = true AND r.estado = :estado")
+    List<Route> findByEmpresaIdAndActivoTrueAndEstadoWithBuses(
+            @Param("empresaId") Long empresaId,
+            @Param("estado") EstadoRuta estado
+    );
 }

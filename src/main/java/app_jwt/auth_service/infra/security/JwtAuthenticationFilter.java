@@ -28,12 +28,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
 
-    // ⬅️ NUEVO: evita filtrar /api/auth/** y preflight OPTIONS
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
-        return path.startsWith("/api/auth/");
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+        return path.startsWith("/api/auth/") || path.startsWith("/api/public/");
     }
 
     @Override
@@ -61,14 +62,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
             } catch (ExpiredJwtException e) {
-                // Token expirado → responde 401 claro (o deja pasar sin auth si prefieres)
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("Token expirado");
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Token expirado\"}");
                 return;
             } catch (JwtException e) {
-                // Firma inválida, malformado, etc.
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("Token inválido");
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Token inválido\"}");
                 return;
             }
         }

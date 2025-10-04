@@ -8,6 +8,7 @@ import app_jwt.auth_service.infra.repository.BusRepository;
 import app_jwt.auth_service.infra.repository.RouteRepository;
 import app_jwt.auth_service.infra.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BusService {
 
     private final BusRepository busRepository;
@@ -239,27 +241,42 @@ public class BusService {
                 .build();
     }
 
-    @Transactional
-    public BusResponse updateBusLocation(Long busId, UpdateLocationRequest request, Long empresaId) {
+    // Métodos para Firebase
+    @Transactional(readOnly = true)
+    public Bus getBusEntity(Long busId, Long empresaId) {
         Bus bus = busRepository.findById(busId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bus no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Bus no encontrado"
+                ));
 
         securityUtils.validateEmpresaAccess(bus.getEmpresaId(), empresaId, "bus");
 
-        bus.setLatitud(request.getLatitud());
-        bus.setLongitud(request.getLongitud());
-        bus.setVelocidad(request.getVelocidad());
-        bus.setUltimaUbicacion(LocalDateTime.now());
+        if (!Boolean.TRUE.equals(bus.getActivo())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Bus no disponible"
+            );
+        }
 
-        return BusResponse.from(busRepository.save(bus));
+        return bus;
     }
 
-    @Transactional(readOnly = true)
-    public List<BusResponse> getBusesWithLocation(Long empresaId) {
-        return busRepository
-                .findByEmpresaIdAndActivoTrueAndLatitudIsNotNullAndLongitudIsNotNullWithRoute(empresaId)
-                .stream()
-                .map(BusResponse::from)
-                .collect(Collectors.toList());
+    @Transactional
+    public void syncLocationSnapshot(Long busId, Double latitud, Double longitud, Double velocidad) {
+        Bus bus = busRepository.findById(busId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Bus no encontrado"
+                ));
+
+        bus.setLatitud(latitud);
+        bus.setLongitud(longitud);
+        bus.setVelocidad(velocidad);
+        bus.setUltimaUbicacion(LocalDateTime.now());
+
+        busRepository.save(bus);
+
+        log.debug("Snapshot de ubicación sincronizado para bus {}", busId);
     }
 }

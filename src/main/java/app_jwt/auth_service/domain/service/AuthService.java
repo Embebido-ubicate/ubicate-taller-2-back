@@ -4,8 +4,10 @@ import app_jwt.auth_service.domain.dtos.auth.AuthResponse;
 import app_jwt.auth_service.domain.dtos.auth.LoginRequest;
 import app_jwt.auth_service.domain.dtos.auth.RegisterRequest;
 import app_jwt.auth_service.domain.dtos.auth.UserResponse;
+import app_jwt.auth_service.domain.entity.Empresa;
 import app_jwt.auth_service.domain.entity.Usuario;
 import app_jwt.auth_service.domain.enums.Role;
+import app_jwt.auth_service.infra.repository.EmpresaRepository;
 import app_jwt.auth_service.infra.repository.UsuarioRepository;
 import app_jwt.auth_service.infra.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
+    private final EmpresaRepository empresaRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -35,6 +38,21 @@ public class AuthService {
 
         Long nuevaEmpresaId = generateUniqueEmpresaId();
 
+        // Crear registro de empresa
+        Empresa empresa = Empresa.builder()
+                .id(nuevaEmpresaId)
+                .nombre(request.getNombreEmpresa() != null ?
+                        request.getNombreEmpresa() :
+                        request.getNombre() + " " + request.getApellido())
+                .ruc(request.getRuc())
+                .telefono(request.getTelefono())
+                .direccion(request.getDireccion())
+                .activo(true)
+                .build();
+
+        empresaRepository.save(empresa);
+
+        // Crear usuario administrador de la empresa
         Usuario usuario = Usuario.builder()
                 .username(request.getEmail())
                 .correo(request.getEmail())
@@ -105,10 +123,36 @@ public class AuthService {
         int hashCode = UUID.randomUUID().toString().hashCode();
         long empresaId = Math.abs(timestamp + hashCode);
 
-        while (usuarioRepository.findByEmpresaId(empresaId).isPresent()) {
+        // Verificar que no exista en ninguna de las dos tablas
+        int intentos = 0;
+        while ((empresaRepository.existsById(empresaId) ||
+                usuarioRepository.findByEmpresaId(empresaId).isPresent()) && intentos < 10) {
             empresaId = Math.abs(System.currentTimeMillis() + UUID.randomUUID().toString().hashCode());
+            intentos++;
+        }
+
+        if (intentos >= 10) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "No se pudo generar un ID único para la empresa");
         }
 
         return empresaId;
+    }
+    @Transactional(readOnly = true)
+    public Usuario getUsuarioByEmail(String email) {
+        return usuarioRepository.findByCorreo(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Usuario no encontrado"
+                ));
+    }
+
+    @Transactional(readOnly = true)
+    public Usuario getUsuarioByUsername(String username) {
+        return usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Usuario no encontrado"
+                ));
     }
 }

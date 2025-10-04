@@ -3,6 +3,7 @@ package app_jwt.auth_service.controller;
 import app_jwt.auth_service.domain.dtos.bus.*;
 import app_jwt.auth_service.domain.enums.EstadoBus;
 import app_jwt.auth_service.domain.service.BusService;
+import app_jwt.auth_service.domain.service.FirebaseTrackingService;
 import app_jwt.auth_service.infra.security.AuthUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ import java.util.List;
 public class BusController {
 
     private final BusService busService;
+    private final FirebaseTrackingService firebaseTrackingService;
     private final AuthUtils authUtils;
 
     @PostMapping
@@ -45,7 +47,6 @@ public class BusController {
         Long empresaId = authUtils.getEmpresaId(authentication);
 
         if (rutaId != null) {
-            // Filtrar por ruta específica
             Page<BusResponse> buses = busService.getBusesByRuta(rutaId, empresaId, pageable);
             return ResponseEntity.ok(buses);
         }
@@ -98,6 +99,7 @@ public class BusController {
             Authentication authentication) {
         Long empresaId = authUtils.getEmpresaId(authentication);
         busService.deleteBus(busId, empresaId);
+        firebaseTrackingService.removeBusFromFirebase(empresaId, busId);
         return ResponseEntity.ok(new ApiResponse("Bus eliminado exitosamente", true));
     }
 
@@ -108,6 +110,15 @@ public class BusController {
             Authentication authentication) {
         Long empresaId = authUtils.getEmpresaId(authentication);
         BusResponse response = busService.changeEstadoBus(busId, estado, empresaId);
+
+        if (estado == EstadoBus.EN_RUTA) {
+            firebaseTrackingService.initializeBusLocation(
+                    busService.getBusEntity(busId, empresaId)
+            );
+        } else if (estado == EstadoBus.INACTIVO || estado == EstadoBus.MANTENIMIENTO) {
+            firebaseTrackingService.deactivateBusLocation(empresaId, busId);
+        }
+
         return ResponseEntity.ok(response);
     }
 
@@ -127,21 +138,4 @@ public class BusController {
         return ResponseEntity.ok(stats);
     }
 
-    // 📍 UBICACIÓN EN TIEMPO REAL
-    @PutMapping("/{busId}/ubicacion")
-    public ResponseEntity<BusResponse> updateBusLocation(
-            @PathVariable Long busId,
-            @Valid @RequestBody UpdateLocationRequest request,
-            Authentication authentication) {
-        Long empresaId = authUtils.getEmpresaId(authentication);
-        BusResponse response = busService.updateBusLocation(busId, request, empresaId);
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/con-ubicacion")
-    public ResponseEntity<List<BusResponse>> getBusesWithLocation(Authentication authentication) {
-        Long empresaId = authUtils.getEmpresaId(authentication);
-        List<BusResponse> buses = busService.getBusesWithLocation(empresaId);
-        return ResponseEntity.ok(buses);
-    }
 }

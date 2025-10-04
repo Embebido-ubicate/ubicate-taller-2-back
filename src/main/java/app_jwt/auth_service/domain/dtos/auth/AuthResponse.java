@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AuthResponse {
     private String token;
+    private String firebaseToken;
     private UserResponse user;
     private Long empresaId;
     private String message;
